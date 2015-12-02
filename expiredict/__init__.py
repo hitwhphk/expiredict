@@ -13,6 +13,7 @@ map2 : key_time_map
 }
 
 '''
+#--------------------
 
 import time
 from threading import RLock
@@ -32,24 +33,28 @@ class ExpireDict(OrderedDict):
         self.max_len = max_len
         self.key_time_map = {}
         self.lock = RLock()
+        self.waste = []
 
     def __contains__(self, key):
         """ Return True if the dict has a key, else return False. """
         try:
             with self.lock:
-                item = OrderedDict.__getitem__(self, key)
-                expire_time = self.key_time_map[key].get('expire_time',None)
-                if expire_time and expire_time >0:
-                    return True
-                else:
-                    del self[key]
+                #item = OrderedDict.__getitem__(self, key)
+                
+#                expire_time = self.key_time_map[key].get('expire_time',None)
+#                if expire_time and expire_time >0:
+#                    return True
+#                else:
+#                    del self[key]
+                
+                item = self[key]
+                return True
         except KeyError:
             pass
         return False
 
     def __getitem__(self, key, with_age=False):
         """ Return the item of the dict.
-
         Raises a KeyError if key is not in the map.
         """
         with self.lock:
@@ -63,10 +68,11 @@ class ExpireDict(OrderedDict):
             item_age = (self.key_time_map[key].get('expire_time',0)) - time.time() 
             if item_age > 0:
                 if with_age:
-                    return item[0], item_age
+                    return item, item_age
                 else:
-                    return item[0]
+                    return item
             else:
+                self.waste.append(key)
                 del self[key]
                 raise KeyError(key)
 
@@ -77,13 +83,17 @@ class ExpireDict(OrderedDict):
                 self.popitem(last=False)
             OrderedDict.__setitem__(self, key,value)
             self.key_time_map[key] = {}
+            
 
     def __llen__(self, key):
         return len(OrderedDict.__setitem__(self, key,value))
+    def getWaste(self):
+        a = self.waste
+        self.waste = []
+        return a
 
     def pop(self, key, default=None):
         """ Get item from the dict and remove it.
-
         Return default if expired or does not exist. Never raise KeyError.
         """
         with self.lock:
@@ -117,7 +127,6 @@ class ExpireDict(OrderedDict):
 
     def ttl(self, key):
         """ Return TTL of the `key` (in seconds).
-
         Returns None for non-existent or expired keys.
         """
         expire_time = self.key_time_map.get(key,{}).get('expire_time',None)
@@ -133,11 +142,14 @@ class ExpireDict(OrderedDict):
             expire_time = time.time() + seconds
             self.key_time_map[key] = {"time":time.time(),"max_age":0,"expire_time":expire_time}
             key_ttl = expire_time - time.time()
+            #self.__setitem__(key,is_have)
+            #OrderedDict.__setitem__(self, key,is_have)
             if key_ttl > 0:
                 return key_ttl
         return None
 
     def get(self, key, default=None, with_age=False):
+      
         " Return the value for key if key is in the dictionary, else default. "
         try:
             return self.__getitem__(key, with_age)
@@ -148,6 +160,7 @@ class ExpireDict(OrderedDict):
                 return default
 
     def items(self):
+     
         """ Return a copy of the dictionary's list of (key, value) pairs. """
         r = []
         for key in self:
@@ -158,6 +171,7 @@ class ExpireDict(OrderedDict):
         return r
 
     def values(self):
+       
         """ Return a copy of the dictionary's list of values.
         See the note for dict.items(). """
         r = []
@@ -169,6 +183,12 @@ class ExpireDict(OrderedDict):
         return r
 
     def keys(self):
+        for i in self:
+            try:
+                self[i]
+            except:
+                pass
+            
         return OrderedDict.keys(self)
 
     def fromkeys(self):
