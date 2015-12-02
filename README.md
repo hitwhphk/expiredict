@@ -49,4 +49,7 @@ print d.ttl('a')
 print "return value : %s"%d['a']
 time.sleep(3)
 print d['a']
+
+print d.keys()#通过keys()方法不会显示超时的键值
+print d.waste()#返回超时被遗弃的键值
 ```
